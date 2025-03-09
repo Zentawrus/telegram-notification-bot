@@ -1,101 +1,33 @@
 name: CI
 
-# 1
-# Controls when the workflow will run
+# Trigger the workflow on push to the main branch
 on:
-  # Triggers the workflow on push events but only for the main branch
   push:
     branches: [ main ]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Image version'
-        required: true
-
-# 2
-env:
-  REGISTRY: "registry.digitalocean.com/github-actions-tgbot"
-  IMAGE_NAME_BOT: "telegram-bot-project-bot"
-  IMAGE_NAME_POSTGRES: "telegram-bot-project-postgres"
-
-# 3
 jobs:
-  build_and_push:
+  build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
 
-      # Build the first image (Bot)
-      - name: Build Bot container image
-        run: docker build -t $(echo $REGISTRY)/$(echo $IMAGE_NAME_BOT):$(echo $GITHUB_SHA | head -c7) ./path_to_bot
-
-      # Build the second image (Postgres, if needed)
-      - name: Build Postgres container image
-        run: docker build -t $(echo $REGISTRY)/$(echo $IMAGE_NAME_POSTGRES):$(echo $GITHUB_SHA | head -c7) ./path_to_postgres
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Log in to DigitalOcean Container Registry with short-lived credentials
-        run: doctl registry login --expiry-seconds 600
-
-      - name: Remove all old images (Bot)
-        run: |
-          if [ ! -z "$(doctl registry repository list | grep "$(echo $IMAGE_NAME_BOT)")" ]; then
-            doctl registry repository delete-manifest $(echo $IMAGE_NAME_BOT) $(doctl registry repository list-tags $(echo $IMAGE_NAME_BOT) | grep -o "sha.*") --force;
-          else echo "No repository for bot"; fi
-
-      - name: Remove all old images (Postgres)
-        run: |
-          if [ ! -z "$(doctl registry repository list | grep "$(echo $IMAGE_NAME_POSTGRES)")" ]; then
-            doctl registry repository delete-manifest $(echo $IMAGE_NAME_POSTGRES) $(doctl registry repository list-tags $(echo $IMAGE_NAME_POSTGRES) | grep -o "sha.*") --force;
-          else echo "No repository for postgres"; fi
-
-      # Push the first image (Bot)
-      - name: Push Bot image to DigitalOcean Container Registry
-        run: docker push $(echo $REGISTRY)/$(echo $IMAGE_NAME_BOT):$(echo $GITHUB_SHA | head -c7)
-
-      # Push the second image (Postgres)
-      - name: Push Postgres image to DigitalOcean Container Registry
-        run: docker push $(echo $REGISTRY)/$(echo $IMAGE_NAME_POSTGRES):$(echo $GITHUB_SHA | head -c7)
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build_and_push
-    steps:
-      - name: Deploy to DigitalOcean droplet via SSH action
+      - name: Deploy to VM via SSH
         uses: appleboy/ssh-action@v0.1.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSHKEY }}
-          passphrase: ${{ secrets.PASSPHRASE }}
-          envs: IMAGE_NAME_BOT,IMAGE_NAME_POSTGRES,REGISTRY,{{ secrets.DIGITALOCEAN_ACCESS_TOKEN }},GITHUB_SHA
+          host: ${{ secrets.HOST }}  # Your VM's IP address
+          username: ${{ secrets.USERNAME }}  # Your VM's username
+          key: ${{ secrets.SSHKEY }}  # Your SSH private key
+          passphrase: ${{ secrets.PASSPHRASE }}  # Passphrase for your SSH key (if any)
           script: |
-            # Login to registry
-            docker login -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} -p ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} registry.digitalocean.com
+            # Navigate to your project directory
+            cd /telegram-bot-project
 
-            # Stop running containers
-            docker stop $(echo $IMAGE_NAME_BOT) || echo "Bot container not running"
-            docker stop $(echo $IMAGE_NAME_POSTGRES) || echo "Postgres container not running"
+            # Pull the latest changes from Git
+            git pull origin main
 
-            # Remove old containers
-            docker rm $(echo $IMAGE_NAME_BOT) || echo "Bot container not removed"
-            docker rm $(echo $IMAGE_NAME_POSTGRES) || echo "Postgres container not removed"
+            # Stop and remove old containers
+            docker-compose down || echo "No running containers to stop"
 
-            # Run the Bot container from a new image
-            docker run -d \
-              --restart always \
-              --name $(echo $IMAGE_NAME_BOT) \
-              $(echo $REGISTRY)/$(echo $IMAGE_NAME_BOT):$(echo $GITHUB_SHA | head -c7)
-
-            # Run the Postgres container from a new image
-            docker run -d \
-              --restart always \
-              --name $(echo $IMAGE_NAME_POSTGRES) \
-              $(echo $REGISTRY)/$(echo $IMAGE_NAME_POSTGRES):$(echo $GITHUB_SHA | head -c7)
+            # Rebuild and start the containers
+            docker-compose up -d --build
