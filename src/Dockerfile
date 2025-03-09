@@ -15,3 +15,5 @@ COPY . /app/
 
 # Start the bot
 CMD ["python", "bot.py"]
+
+#test
