@@ -21,7 +21,7 @@ jobs:
           passphrase: ${{ secrets.PASSPHRASE }}  # Passphrase for your SSH key (if any)
           script: |
             # Navigate to your project directory
-            cd /telegram-bot-project
+            cd telegram-bot-project
 
             # Pull the latest changes from Git
             git pull origin main
