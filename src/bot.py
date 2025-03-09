@@ -55,7 +55,7 @@ def status(update: Update, context: CallbackContext):
     cursor.close()
     connection.close()
 
-    update.message.reply_text(f"Total users in the database: {user_count}")
+    update.message.reply_text(f"Update 2.0 CI\CD check. Total users in the database: {user_count}")
 
 
 def main():
