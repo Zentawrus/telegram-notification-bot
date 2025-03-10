@@ -31,3 +31,5 @@ jobs:
 
             # Rebuild and start the containers
             docker-compose up -d --build
+
+            docker compose -f docker-compose.monitoring.yml up -d
