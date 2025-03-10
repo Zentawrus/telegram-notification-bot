@@ -12,8 +12,10 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
     depends_on:
-      - cadvisor
-      - node-exporter
+      cadvisor:
+        condition: service_healthy
+      node-exporter:
+        condition: service_healthy
 
   grafana:
     image: grafana/grafana:latest
@@ -26,7 +28,8 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -38,6 +41,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -45,6 +53,11 @@ services:
     restart: always
     ports:
       - "9100:9100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9100/metrics"]
+      interval: 30s
+      retries: 3
+      start_period: 30s
 
 volumes:
   grafana_data:
