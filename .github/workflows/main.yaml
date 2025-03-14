@@ -27,9 +27,7 @@ jobs:
             git pull origin main
 
             # Stop and remove old containers
-            docker-compose down --remove-orphans || echo "No running containers to stop"
+            docker compose down --remove-orphans || echo "No running containers to stop"
 
             # Rebuild and start the containers
-            docker-compose up -d --build
-
-            docker-compose -f ./docker-compose-monitoring.yml up -d
+            docker compose -f docker-compose.yaml -f docker-compose-monitoring.yaml up -d --build --remove-orphans

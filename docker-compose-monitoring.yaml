@@ -6,14 +6,14 @@ services:
     container_name: prometheus
     restart: always
     volumes:
-      - ./prometheus:/etc/prometheus/prometheus
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml
     ports:
       - "9090:9090"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--config.file=/etc/prometheus/prometheus.yaml'
   
     healthcheck:
-      test: ["CMD", "cat", "/etc/prometheus/prometheus.yml"]
+      test: ["CMD", "cat", "/etc/prometheus/prometheus.yaml"]
       interval: 30s
       retries: 3
       start_period: 10s
